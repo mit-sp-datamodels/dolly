@@ -1,31 +1,5 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC ## Train Dolly
-# MAGIC
-# MAGIC This fine-tunes EleutherAI Pythia models
-# MAGIC (e.g. [pythia-2.8b](https://huggingface.co/EleutherAI/pythia-2.8b),
-# MAGIC [pythia-6.9b](https://huggingface.co/EleutherAI/pythia-6.9b), or
-# MAGIC [pythia-12b](https://huggingface.co/EleutherAI/pythia-12b)) on
-# MAGIC the [databricks-dolly-15k](https://github.com/databrickslabs/dolly/tree/master/data) dataset.
-# MAGIC
-# MAGIC ```
-# MAGIC   Licensed under the Apache License, Version 2.0 (the "License");
-# MAGIC   you may not use this file except in compliance with the License.
-# MAGIC   You may obtain a copy of the License at
-# MAGIC
-# MAGIC       http://www.apache.org/licenses/LICENSE-2.0
-# MAGIC
-# MAGIC   Unless required by applicable law or agreed to in writing, software
-# MAGIC   distributed under the License is distributed on an "AS IS" BASIS,
-# MAGIC   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# MAGIC   See the License for the specific language governing permissions and
-# MAGIC   limitations under the License.
-# MAGIC ```
-# MAGIC
-# MAGIC The EleutherAI Pythia models are [Apache 2.0 licensed](https://huggingface.co/EleutherAI/gpt-j-6B) and
-# MAGIC the [databricks-dolly-15k](https://github.com/databrickslabs/dolly/tree/master/data) is licensed under the terms
-# MAGIC of [Creative Commons Attribution-ShareAlike 3.0 Unported License](https://creativecommons.org/licenses/by-sa/3.0/legalcode),
-# MAGIC which means it can be used for either academic or commercial purposes.
+# MAGIC %md # 02c-Fine Tune distilbert-base-cased-distilled-squad
 
 # COMMAND ----------
 
@@ -79,16 +53,18 @@ dbutils.widgets.combobox("gpu_family", "a100", ["v100", "a10", "a100"])
 
 # COMMAND ----------
 
+# DBTITLE 1,use custom training set
 dataset = load_training_dataset("/dbfs/mnt/datalake/tower_contract_abstraction/fine-tuning/")
 print(dataset[0]["text"])
 
 # COMMAND ----------
 
 timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-model_name = "dolly"
+model_name = "distilbert"
 
 experiment_id = dbutils.widgets.get("experiment_id")
-input_model = dbutils.widgets.get("input_model")
+# input_model = dbutils.widgets.get("input_model")
+input_model = "distilbert-base-cased-distilled-squad"
 
 if experiment_id:
     experiment_id = re.sub(r"\s+", "_", experiment_id.strip())
@@ -96,21 +72,21 @@ if experiment_id:
 
 checkpoint_dir_name = f"{model_name}__{timestamp}"
 
-dolly_training_dir_name = "dolly_training"
+distilbert_training_dir_name = "distilbert_training"
 
 # Use the local training root path if it was provided.  Otherwise try to find a sensible default.
 local_training_root = dbutils.widgets.get("local_training_root")
 if not local_training_root:
     # Use preferred path when working in a Databricks cluster if it exists.
     if os.path.exists("/local_disk0"):
-        local_training_root = os.path.join("/local_disk0", dolly_training_dir_name)
+        local_training_root = os.path.join("/local_disk0", distilbert_training_dir_name)
     # Otherwise use the home directory.
     else:
-        local_training_root = os.path.join(os.path.expanduser('~'), dolly_training_dir_name)
+        local_training_root = os.path.join(os.path.expanduser('~'), distilbert_training_dir_name)
 
 dbfs_output_root = dbutils.widgets.get("dbfs_output_root")
 if not dbfs_output_root:
-    dbfs_output_root = f"/dbfs/{dolly_training_dir_name}"
+    dbfs_output_root = f"/dbfs/{distilbert_training_dir_name}"
 
 os.makedirs(local_training_root, exist_ok=True)
 os.makedirs(dbfs_output_root, exist_ok=True)
@@ -149,11 +125,6 @@ else:
     bf16_flag = "--bf16 true"
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-# COMMAND ----------
-
-# MAGIC %load_ext tensorboard
-# MAGIC %tensorboard --logdir '{tensorboard_display_dir}'
 
 # COMMAND ----------
 
